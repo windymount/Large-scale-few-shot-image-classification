@@ -92,5 +92,5 @@ def validate(model, test_loader, device=torch.device("cuda"), verbal=True):
 
 
 if __name__ == "__main__":
-    device = torch.cuda.is_available()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     main(device)
