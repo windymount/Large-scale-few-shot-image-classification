@@ -6,7 +6,7 @@ import torchvision
 import torch
 from time import time
 from torch.utils.tensorboard import SummaryWriter
-from params import N_QUERY, N_SUPPORT
+from params import N_EPOCHS, N_QUERY, N_SUPPORT
 from utils import running_average
 import argparse
 
@@ -39,13 +39,14 @@ def main(device):
     optimizer = torch.optim.Adam(linear_probe.parameters(), args.lr,
                                 weight_decay=0.0001)
     writer = SummaryWriter()
-    for epoch in range(25):
+    for epoch in range(N_EPOCHS):
         train_epoch(res50_model, linear_probe, epoch, crit, train_loader, test_loader, optimizer,
                     writer, device)
         
 
 
-def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimizer, writer, device, scheduler=None):
+def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimizer, writer, device, scheduler=None, 
+                verbal=False):
     ep_start = time()
     total_loss = running_average()
     probe.train()
@@ -61,9 +62,9 @@ def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimiz
         optimizer.step()
         """"""
         # if batch_idx > 5:break
-
-    print("Epoch {} total loss {} time {}".format(epoch, total_loss.value, time()-ep_start))
-    val_loss, val_acc = validate(torch.nn.Sequential(backbone, probe), test_loader, device)
+    if verbal:
+        print("Epoch {} total loss {} time {}".format(epoch, total_loss.value, time()-ep_start))
+    val_loss, val_acc = validate(torch.nn.Sequential(backbone, probe), test_loader, device, verbal)
     writer.add_scalar("val_loss", val_loss, epoch)
     writer.add_scalar("val_acc", val_acc, epoch)
     writer.add_scalar("train_loss", total_loss.value, epoch)

@@ -16,3 +16,4 @@ CIFAR100_TRANSFORM = transforms.Compose([
     )])
 N_QUERY = 15
 N_SUPPORT = 5
+N_EPOCHS = 35
