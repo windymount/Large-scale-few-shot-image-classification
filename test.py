@@ -42,7 +42,7 @@ def main(device):
     for epoch in range(N_EPOCHS):
         train_epoch(res50_model, linear_probe, epoch, crit, train_loader, test_loader, optimizer,
                     writer, device)
-        
+    validate(torch.nn.Sequential(res50_model, linear_probe), test_loader, device)
 
 
 def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimizer, writer, device, scheduler=None, 
