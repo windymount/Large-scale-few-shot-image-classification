@@ -7,23 +7,15 @@ from params import CIFAR100_TRANSFORM
 
 class few_shot_CIFAR100():
     def __init__(self):
-        CIFAR100_test = tv.datasets.CIFAR100("/cifar", train=False, download=True)
-        CIFAR100_train = tv.datasets.CIFAR100("/cifar", train=False, download=True)
-        test_loader = torch.utils.data.DataLoader(CIFAR100_test, 
-                                            batch_size=1, 
-                                            shuffle=False,
-                                            num_workers=1)
-        train_loader = torch.utils.data.DataLoader(CIFAR100_train, 
-        batch_size=1, 
-        shuffle=False,
-        num_workers=1)
+        CIFAR100_test = tv.datasets.CIFAR100("./cifar", train=False, download=True)
+        CIFAR100_train = tv.datasets.CIFAR100("./cifar", train=False, download=True)
         self.class_data = {}
-        for instance, label in test_loader:
+        for instance, label in CIFAR100_train:
             if label in self.class_data:
                 self.class_data[label].append(instance)
             else:
                 self.class_data[label] = [instance]
-        for instance, label in train_loader:
+        for instance, label in CIFAR100_test:
             if label in self.class_data:
                 self.class_data[label].append(instance)
             else:
