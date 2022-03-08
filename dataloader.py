@@ -20,10 +20,10 @@ class few_shot_CIFAR100():
                 self.class_data[label].append(instance)
             else:
                 self.class_data[label] = [instance]
-    
+        self.n_class_imgs = len(self.class_data[label])
     def sample_episode(self, n_classes, n_support, n_query):
         test_classes = np.random.choice(range(100), size=n_classes, replace=False)
-        img_idx = np.random.choice(range(600), size=n_support+n_query, replace=False)
+        img_idx = np.random.choice(range(self.n_class_imgs), size=n_support+n_query, replace=False)
         support_idx, query_idx = img_idx[:n_support], img_idx[n_support:]
         support_dataset = few_shot_dataset(test_classes, support_idx, CIFAR100_TRANSFORM, self)
         query_dataset = few_shot_dataset(test_classes, query_idx, CIFAR100_TRANSFORM, self)
