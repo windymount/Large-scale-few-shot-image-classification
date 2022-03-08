@@ -6,6 +6,7 @@ import torchvision
 import torch
 from time import time
 from torch.utils.tensorboard import SummaryWriter
+from params import N_QUERY, N_SUPPORT
 from utils import running_average
 import argparse
 
@@ -25,7 +26,7 @@ def main(device):
     linear_probe = torch.nn.Linear(2048, 5, device=device)
     model = torch.nn.Sequential(res50_model, linear_probe)
     # Training
-    support, query = CIFAR100.sample_episode(5, 50, 150)
+    support, query = CIFAR100.sample_episode(5, N_SUPPORT, N_QUERY)
     train_loader = torch.utils.data.DataLoader(support, 
         batch_size=1, 
         shuffle=False,
