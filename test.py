@@ -35,8 +35,7 @@ def main(device):
         shuffle=False,
         num_workers=4)
     crit = torch.nn.CrossEntropyLoss().to(device)
-    optimizer = torch.optim.Adam(res50_model.fc.parameters(), args.lr,
-                                momentum=args.momentum,
+    optimizer = torch.optim.Adam(linear_probe.parameters(), args.lr,
                                 weight_decay=0.0001)
     writer = SummaryWriter()
     for epoch in range(25):
