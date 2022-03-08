@@ -6,7 +6,7 @@ from params import CIFAR100_TRANSFORM
 
 
 class few_shot_CIFAR100():
-    def __init__(self, transform):
+    def __init__(self):
         CIFAR100_test = tv.datasets.CIFAR100("/cifar", train=False, download=True)
         CIFAR100_train = tv.datasets.CIFAR100("/cifar", train=False, download=True)
         test_loader = torch.utils.data.DataLoader(CIFAR100_test, 
@@ -41,7 +41,6 @@ class few_shot_CIFAR100():
         return self.class_data[cls_id][img_id]
 
 
-
 class few_shot_dataset(torch.utils.data.Dataset):
     def __init__(self, test_classes, img_idx, transform, CIFAR_data) -> None:
         super().__init__()
@@ -58,5 +57,5 @@ class few_shot_dataset(torch.utils.data.Dataset):
             idx = idx.tolist()
         class_id, instance_id = idx // len(self.img_idx), idx % len(self.img_idx)
         sample = self.CIFAR_data.get_image(self.test_classes[class_id], self.img_idx[instance_id])
-        return sample, class_id
+        return self.transform(sample), class_id
         
