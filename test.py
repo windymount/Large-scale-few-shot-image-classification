@@ -1,6 +1,3 @@
-from sched import scheduler
-
-from sympy import arg
 import dataloader
 import torchvision
 import torch
@@ -9,11 +6,12 @@ from torch.utils.tensorboard import SummaryWriter
 from params import N_EPOCHS, N_QUERY, N_SUPPORT
 from utils import running_average
 import argparse
+import pickle
 
 
 def main(device):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--lr", type=float, default=1e-5)
+    parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--momentum", type=float, default=0)
     args = parser.parse_args()
     # Load data and pretrained model
@@ -22,28 +20,35 @@ def main(device):
     res50_model.fc = torch.nn.Identity()
     res50_model.to(device)
     res50_model.eval()
-    # linear probe
-    linear_probe = torch.nn.Linear(2048, 5, device=device)
-    model = torch.nn.Sequential(res50_model, linear_probe)
-    # Training
-    support, query = CIFAR100.sample_episode(5, N_SUPPORT, N_QUERY)
-    train_loader = torch.utils.data.DataLoader(support, 
-        batch_size=1, 
-        shuffle=False,
-        num_workers=1)
-    test_loader = torch.utils.data.DataLoader(query, 
-        batch_size=8, 
-        shuffle=False,
-        num_workers=4)
-    crit = torch.nn.CrossEntropyLoss().to(device)
-    optimizer = torch.optim.Adam(linear_probe.parameters(), args.lr,
-                                weight_decay=0.0001)
-    writer = SummaryWriter()
-    for epoch in range(N_EPOCHS):
-        train_epoch(res50_model, linear_probe, epoch, crit, train_loader, test_loader, optimizer,
-                    writer, device)
-    validate(torch.nn.Sequential(res50_model, linear_probe), test_loader, device)
-
+    result = {}
+    for num_cls in range(5, 80, 5):
+        avg_acc = running_average()
+        for exp_id in range(10):
+            # linear probe      
+            linear_probe = torch.nn.Linear(2048, num_cls, device=device)
+            model = torch.nn.Sequential(res50_model, linear_probe)
+            # Training
+            support, query = CIFAR100.sample_episode(num_cls, N_SUPPORT, N_QUERY)
+            train_loader = torch.utils.data.DataLoader(support, 
+                batch_size=1, 
+                shuffle=False,
+                num_workers=1)
+            test_loader = torch.utils.data.DataLoader(query, 
+                batch_size=8, 
+                shuffle=False,
+                num_workers=4)
+            crit = torch.nn.CrossEntropyLoss().to(device)
+            optimizer = torch.optim.Adam(linear_probe.parameters(), args.lr,
+                                        weight_decay=0.0001)
+            writer = SummaryWriter()
+            for epoch in range(N_EPOCHS):
+                train_epoch(res50_model, linear_probe, epoch, crit, train_loader, test_loader, optimizer,
+                            writer, device)
+            _, acc = validate(torch.nn.Sequential(res50_model, linear_probe), test_loader, device)
+            avg_acc.update(acc)
+        result[num_cls] = avg_acc.value
+    with open("result", "w") as f:
+        pickle.dump(result, f)
 
 def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimizer, writer, device, scheduler=None, 
                 verbal=False):
@@ -60,8 +65,6 @@ def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimiz
         loss.backward()
         total_loss.update(loss.item(), img.shape[0])
         optimizer.step()
-        """"""
-        # if batch_idx > 5:break
     if verbal:
         print("Epoch {} total loss {} time {}".format(epoch, total_loss.value, time()-ep_start))
     val_loss, val_acc = validate(torch.nn.Sequential(backbone, probe), test_loader, device, verbal)
