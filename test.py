@@ -1,3 +1,4 @@
+from baseline import baseline_advanced
 import dataloader
 import torchvision
 import torch
@@ -12,6 +13,8 @@ import numpy as np
 def main(device):
     parser = argparse.ArgumentParser()
     parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--weight-decay", type=float, default=0)
+    parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--output", type=str, default="result.npy")
     parser.add_argument("--n-exp", type=int, default=N_EXPERIMENTS)
     parser.add_argument("--verbose", "-v", action='store_true')
@@ -19,6 +22,7 @@ def main(device):
     parser.add_argument("--n-cls-start", type=int, default=5)
     parser.add_argument("--n-cls-end", type=int, default=50)
     parser.add_argument("--finetune-backbone", action="store_true")
+    parser.add_argument("--use-adv-baseline", action="store_true")
     args = parser.parse_args()
     # Load data and pretrained model
     CIFAR100 = dataloader.few_shot_CIFAR100()
@@ -33,26 +37,45 @@ def main(device):
     for num_cls in cls_range:
         avg_acc = running_average()
         for exp_id in range(args.n_exp):
-            # linear probe      
-            linear_probe = torch.nn.Linear(backbone_output_feature, num_cls, device=device)
-            model = torch.nn.Sequential(res50_model, linear_probe)
             # Training
             support, query = CIFAR100.sample_episode(num_cls, N_SUPPORT, N_QUERY)
             train_loader = torch.utils.data.DataLoader(support, 
-                batch_size=1, 
+                batch_size=args.batch_size,
                 shuffle=False,
                 num_workers=1)
             test_loader = torch.utils.data.DataLoader(query, 
                 batch_size=8, 
                 shuffle=False,
                 num_workers=4)
+            support_loader = torch.utils.data.DataLoader(support, 
+                batch_size=1,
+                shuffle=False,
+                num_workers=1)
+            if args.use_adv_baseline:
+                # Calculate init weights
+                res50_model.eval()
+                construct_weight = {}
+                for img, label in support_loader:
+                    img, label = img.to(device), label.to(device)
+                    output = res50_model(img)
+                    if label.item() not in construct_weight:
+                        construct_weight[label.item()] = running_average()
+                    construct_weight[label.item()].update(output)
+                init_weight = torch.zeros((num_cls, backbone_output_feature))
+                for i in construct_weight:
+                    init_weight[i, :] = construct_weight[i].value
+                linear_probe = baseline_advanced(num_cls, init_weight)
+                linear_probe.to(device)
+            else:
+                linear_probe = torch.nn.Linear(backbone_output_feature, num_cls, device=device)
+            model = torch.nn.Sequential(res50_model, linear_probe)
             crit = torch.nn.CrossEntropyLoss().to(device)
             if args.finetune_backbone:
                 optimizer = torch.optim.Adam(model.parameters(), args.lr,
-                                             weight_decay=0.0001)
+                                             weight_decay=args.weight_decay)
             else:
                 optimizer = torch.optim.Adam(linear_probe.parameters(), args.lr,
-                                        weight_decay=0.0001)
+                                        weight_decay=args.weight_decay)
             writer = SummaryWriter()
             for epoch in range(N_EPOCHS):
                 train_epoch(res50_model, linear_probe, epoch, crit, train_loader, test_loader, optimizer,
