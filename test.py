@@ -13,7 +13,7 @@ import numpy as np
 
 def main(args):
     # Load data and pretrained model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda")
     CIFAR100 = dataloader.few_shot_CIFAR100()
     res50_model = torchvision.models.resnet50(pretrained=True)
     backbone_output_feature = 1000
