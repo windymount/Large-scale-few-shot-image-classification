@@ -20,7 +20,7 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
         args_new.put(Namespace(**arg_dict))
     threads = []
     output_args, metrics = [], []
-    def training_process():
+    def training_process(args_new, q_lock, metrics, ouput_args):
         while not args_new.empty():
             with q_lock:
                 args = args_new.get()
@@ -29,7 +29,7 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
                 output_args.append(args)
                 metrics.append(result)
     for thread_id in range(num_workers):
-        threads.append(mp.Process(target=training_process))
+        threads.append(mp.Process(target=training_process, args=(args_new, q_lock, metrics, ouput_args)))
     for thread in threads:
         thread.start()
     for thread in threads:
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     parser.add_argument("--n-workers", type=int, default=1)
     args = parser.parse_args()
     search_space = {"lr": [1e-3, 1e-4],
-                    "weight_decay": [0, 1e-4], 
+                    # "weight_decay": [0, 1e-4], 
                     "batch_size":[1, 5], 
                     "use_fc": [True, False]}
     grid_search(args, search_space, main)
