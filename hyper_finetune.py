@@ -20,12 +20,13 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
     threads = []
     output_args, metrics = [], []
     def training_process():
-        with q_lock:
-            args = args_new.get()
-        result = training(args)[-1]
-        with q_lock:
-            output_args.append(args)
-            metrics.append(result)
+        while not args_new.empty():
+            with q_lock:
+                args = args_new.get()
+            result = training(args)[-1]
+            with q_lock:
+                output_args.append(args)
+                metrics.append(result)
     for thread_id in range(num_workers):
         threads.append(threading.Thread(target=training_process))
     for thread in threads:
@@ -35,7 +36,9 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
     # Return best arguments and metric
     metrics = np.array(metrics)
     max_i = np.argmax(metrics)
-    best_args = dict(zip(search_keys, search_vals_list[max_i]))
+    # best_args = dict(zip(search_keys, search_vals_list[max_i]))
+    best_args = output_args[max_i]
+    print("All result", list(zip(output_args, metrics)))
     print("Result:", best_args, metrics[max_i])
     return best_args, metrics[max_i]
 
