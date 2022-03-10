@@ -3,29 +3,38 @@ import torchvision
 import torch
 from time import time
 from torch.utils.tensorboard import SummaryWriter
-from params import N_EPOCHS, N_QUERY, N_SUPPORT
+from params import N_EPOCHS, N_EXPERIMENTS, N_QUERY, N_SUPPORT
 from utils import running_average
 import argparse
-import pickle
+import numpy as np
 
 
 def main(device):
     parser = argparse.ArgumentParser()
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--momentum", type=float, default=0)
+    parser.add_argument("--output", type=str, default="result.npy")
+    parser.add_argument("--n-exp", type=int, default=N_EXPERIMENTS)
+    parser.add_argument("--verbose", "-v", action='store_true')
+    parser.add_argument("--use-fc", action="store_true")
+    parser.add_argument("--n-cls-start", type=int, default=5)
+    parser.add_argument("--n-cls-end", type=int, default=50)
     args = parser.parse_args()
     # Load data and pretrained model
     CIFAR100 = dataloader.few_shot_CIFAR100()
     res50_model = torchvision.models.resnet50(pretrained=True)
-    res50_model.fc = torch.nn.Identity()
+    backbone_output_feature = 1000
+    if not args.use_fc:
+        backbone_output_feature = 2048
+        res50_model.fc = torch.nn.Identity()
     res50_model.to(device)
     res50_model.eval()
-    result = {}
-    for num_cls in range(5, 80, 5):
+    result = []
+    cls_range = list(range(args.n_cls_start, args.n_cls_end+1, 5))
+    for num_cls in cls_range:
         avg_acc = running_average()
-        for exp_id in range(10):
+        for exp_id in range(args.n_exp):
             # linear probe      
-            linear_probe = torch.nn.Linear(2048, num_cls, device=device)
+            linear_probe = torch.nn.Linear(backbone_output_feature, num_cls, device=device)
             model = torch.nn.Sequential(res50_model, linear_probe)
             # Training
             support, query = CIFAR100.sample_episode(num_cls, N_SUPPORT, N_QUERY)
@@ -43,12 +52,13 @@ def main(device):
             writer = SummaryWriter()
             for epoch in range(N_EPOCHS):
                 train_epoch(res50_model, linear_probe, epoch, crit, train_loader, test_loader, optimizer,
-                            writer, device)
+                            writer, device, verbal=args.verbose)
             _, acc = validate(torch.nn.Sequential(res50_model, linear_probe), test_loader, device)
             avg_acc.update(acc)
-        result[num_cls] = avg_acc.value
-    with open("result", "w") as f:
-        pickle.dump(result, f)
+        result.append(avg_acc.value)
+    save_result = np.array(result)
+    save_cls_num = np.array(cls_range)
+    np.save(args.output, np.vstack((save_cls_num, save_result)))
 
 def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimizer, writer, device, scheduler=None, 
                 verbal=False):
