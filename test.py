@@ -18,6 +18,7 @@ def main(device):
     parser.add_argument("--use-fc", action="store_true")
     parser.add_argument("--n-cls-start", type=int, default=5)
     parser.add_argument("--n-cls-end", type=int, default=50)
+    parser.add_argument("--finetune-backbone", action="store_true")
     args = parser.parse_args()
     # Load data and pretrained model
     CIFAR100 = dataloader.few_shot_CIFAR100()
@@ -27,7 +28,6 @@ def main(device):
         backbone_output_feature = 2048
         res50_model.fc = torch.nn.Identity()
     res50_model.to(device)
-    res50_model.eval()
     result = []
     cls_range = list(range(args.n_cls_start, args.n_cls_end+1, 5))
     for num_cls in cls_range:
@@ -47,28 +47,39 @@ def main(device):
                 shuffle=False,
                 num_workers=4)
             crit = torch.nn.CrossEntropyLoss().to(device)
-            optimizer = torch.optim.Adam(linear_probe.parameters(), args.lr,
+            if args.finetune_backbone:
+                optimizer = torch.optim.Adam(model.parameters(), args.lr,
+                                             weight_decay=0.0001)
+            else:
+                optimizer = torch.optim.Adam(linear_probe.parameters(), args.lr,
                                         weight_decay=0.0001)
             writer = SummaryWriter()
             for epoch in range(N_EPOCHS):
                 train_epoch(res50_model, linear_probe, epoch, crit, train_loader, test_loader, optimizer,
-                            writer, device, verbal=args.verbose)
+                            writer, device, verbal=args.verbose, finetune_backbone=args.finetune_backbone)
             _, acc = validate(torch.nn.Sequential(res50_model, linear_probe), test_loader, device)
-            avg_acc.update(acc)
+            avg_acc.update(acc.item())
         result.append(avg_acc.value)
     save_result = np.array(result)
     save_cls_num = np.array(cls_range)
     np.save(args.output, np.vstack((save_cls_num, save_result)))
 
 def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimizer, writer, device, scheduler=None, 
-                verbal=False):
+                verbal=False, finetune_backbone=False):
     ep_start = time()
     total_loss = running_average()
     probe.train()
+    if finetune_backbone:
+        backbone.train()
+    else:
+        backbone.eval()
     for batch_idx, (img, label) in enumerate(train_loader):
         img, label = img.to(device), label.to(device)
-        with torch.no_grad():
+        if finetune_backbone:
             output = backbone(img)
+        else:
+            with torch.no_grad():
+                output = backbone(img)
         output = probe(output)
         loss = crit(output, label)
         optimizer.zero_grad()
