@@ -5,6 +5,7 @@ from argparse import Namespace
 import threading
 from params import N_EXPERIMENTS
 from test import main
+import torch.multiprocessing as mp
 from queue import Queue
 
 
@@ -28,7 +29,7 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
                 output_args.append(args)
                 metrics.append(result)
     for thread_id in range(num_workers):
-        threads.append(threading.Thread(target=training_process))
+        threads.append(mp.Process(target=training_process))
     for thread in threads:
         thread.start()
     for thread in threads:
