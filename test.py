@@ -2,6 +2,7 @@ from baseline import baseline_advanced
 import dataloader
 import torchvision
 import torch
+import torch.multiprocessing as mp
 from time import time
 from torch.utils.tensorboard import SummaryWriter
 from params import N_EPOCHS, N_EXPERIMENTS, N_QUERY, N_SUPPORT
@@ -10,21 +11,9 @@ import argparse
 import numpy as np
 
 
-def main(device):
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight-decay", type=float, default=0)
-    parser.add_argument("--batch-size", type=int, default=1)
-    parser.add_argument("--output", type=str, default="result.npy")
-    parser.add_argument("--n-exp", type=int, default=N_EXPERIMENTS)
-    parser.add_argument("--verbose", "-v", action='store_true')
-    parser.add_argument("--use-fc", action="store_true")
-    parser.add_argument("--n-cls-start", type=int, default=5)
-    parser.add_argument("--n-cls-end", type=int, default=50)
-    parser.add_argument("--finetune-backbone", action="store_true")
-    parser.add_argument("--use-adv-baseline", action="store_true")
-    args = parser.parse_args()
+def main(args):
     # Load data and pretrained model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     CIFAR100 = dataloader.few_shot_CIFAR100()
     res50_model = torchvision.models.resnet50(pretrained=True)
     backbone_output_feature = 1000
@@ -86,6 +75,7 @@ def main(device):
     save_result = np.array(result)
     save_cls_num = np.array(cls_range)
     np.save(args.output, np.vstack((save_cls_num, save_result)))
+    return save_result
 
 def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimizer, writer, device, scheduler=None, 
                 verbal=False, finetune_backbone=False):
@@ -140,5 +130,17 @@ def validate(model, test_loader, device=torch.device("cuda"), verbal=True):
 
 
 if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    main(device)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--weight-decay", type=float, default=0)
+    parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--output", type=str, default="result.npy")
+    parser.add_argument("--n-exp", type=int, default=N_EXPERIMENTS)
+    parser.add_argument("--verbose", "-v", action='store_true')
+    parser.add_argument("--use-fc", action="store_true")
+    parser.add_argument("--n-cls-start", type=int, default=5)
+    parser.add_argument("--n-cls-end", type=int, default=50)
+    parser.add_argument("--finetune-backbone", action="store_true")
+    parser.add_argument("--use-adv-baseline", action="store_true")
+    args = parser.parse_args()
+    main(args)

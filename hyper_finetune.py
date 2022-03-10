@@ -1,7 +1,9 @@
 # Implementation of hyper-finetune algorithm
+import argparse
 import numpy as np
 from argparse import Namespace
 import threading
+from params import N_EXPERIMENTS
 from test import main
 from queue import Queue
 
@@ -34,10 +36,11 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
     metrics = np.array(metrics)
     max_i = np.argmax(metrics)
     best_args = dict(zip(search_keys, search_vals_list[max_i]))
+    print("Result:", best_args, metrics[max_i])
     return best_args, metrics[max_i]
 
 
-def gridsearch(args, search_space, training):
+def grid_search(args, search_space, training):
     """
     args: arguments need for training
     search_space: dict: key is argument-name and value is list of this argument
@@ -78,5 +81,22 @@ def random_search(args, cat_args, cat_list, cont_args, cont_bounds, training, n_
          
 
 if __name__ == "__main__":
-    s_space = {"a":[3,5,7], "b":[1, 3], "c":[4, 2]}
-    gridsearch(0, s_space, 0)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--weight-decay", type=float, default=0)
+    parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--output", type=str, default="result.npy")
+    parser.add_argument("--n-exp", type=int, default=N_EXPERIMENTS)
+    parser.add_argument("--verbose", "-v", action='store_true')
+    parser.add_argument("--use-fc", action="store_true")
+    parser.add_argument("--n-cls-start", type=int, default=5)
+    parser.add_argument("--n-cls-end", type=int, default=50)
+    parser.add_argument("--finetune-backbone", action="store_true")
+    parser.add_argument("--use-adv-baseline", action="store_true")
+    parser.add_argument("--n-workers", type=int, default=1)
+    args = parser.parse_args()
+    search_space = {"lr": [1e-3, 1e-4],
+                    "weight_decay": [0, 1e-4], 
+                    "batch_size":[1, 5], 
+                    "use_fc": [True, False]}
+    grid_search(args, search_space, main)
