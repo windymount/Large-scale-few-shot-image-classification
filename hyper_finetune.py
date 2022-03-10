@@ -52,7 +52,7 @@ def grid_search(args, search_space, training):
     all_args = [()]
     for vlist in search_space.values():
         all_args = arg_combine(all_args, vlist)
-    return test_all(args, search_space.keys(), all_args, training)
+    return test_all(args, search_space.keys(), all_args, training, args.n_workers)
 
 
 def random_search(args, cat_args, cat_list, cont_args, cont_bounds, training, n_tests, sample_method=None):
@@ -76,7 +76,7 @@ def random_search(args, cat_args, cat_list, cont_args, cont_bounds, training, n_
             else:
                 raise ValueError()
         all_args.append(sub_args)
-    return test_all(args, cat_args+cont_args, all_args, training)
+    return test_all(args, cat_args+cont_args, all_args, training, args.n_workers)
 
          
 
