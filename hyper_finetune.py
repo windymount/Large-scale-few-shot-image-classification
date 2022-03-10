@@ -22,7 +22,7 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
     def training_process():
         with q_lock:
             args = args_new.get()
-        result = training(args)
+        result = training(args)[-1]
         with q_lock:
             output_args.append(args)
             metrics.append(result)
