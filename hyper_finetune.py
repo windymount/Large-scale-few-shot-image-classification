@@ -99,7 +99,7 @@ if __name__ == "__main__":
     parser.add_argument("--n-workers", type=int, default=1)
     args = parser.parse_args()
     search_space = {"lr": [1e-3, 1e-4],
-                    # "weight_decay": [0, 1e-4], 
-                    # "batch_size":[1, 5], 
+                    "weight_decay": [0, 1e-4], 
+                    "batch_size":[1, 5], 
                     "use_fc": [True, False]}
     grid_search(args, search_space, main)
