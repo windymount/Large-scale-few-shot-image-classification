@@ -47,7 +47,8 @@ def main(args):
                 construct_weight = {}
                 for img, label in support_loader:
                     img, label = img.to(device), label.to(device)
-                    output = res50_model(img)
+                    with torch.no_grad():
+                        output = res50_model(img)
                     if label.item() not in construct_weight:
                         construct_weight[label.item()] = running_average()
                     construct_weight[label.item()].update(output)
