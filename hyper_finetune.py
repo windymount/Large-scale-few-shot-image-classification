@@ -29,7 +29,7 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
             with q_lock:
                 metrics[idx] = result
     for thread_id in range(num_workers):
-        threads.append(ctx.Process(target=training_process, args=(args_new, q_lock, metrics, output_args)))
+        threads.append(ctx.Process(target=training_process, args=(args_new, q_lock, metrics)))
     for thread in threads:
         thread.start()
     for thread in threads:
