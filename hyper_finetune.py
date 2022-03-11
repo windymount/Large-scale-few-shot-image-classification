@@ -14,21 +14,20 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
     ctx = mp.get_context()
     args_new = ctx.Queue()
     q_lock = ctx.Lock()
-    for sub_args in search_vals_list:
+    for idx, sub_args in enumerate(search_vals_list):
         # substitute args
         for i, key in enumerate(search_keys):
             arg_dict[key] = sub_args[i]
-        args_new.put(Namespace(**arg_dict))
+        args_new.put((idx, Namespace(**arg_dict)))
     threads = []
-    output_args, metrics = ctx.Array(), ctx.Array()
-    def training_process(args_new, q_lock, metrics, output_args):
+    metrics = ctx.Array("f", len(search_vals_list))
+    def training_process(args_new, q_lock, metrics):
         while not args_new.empty():
             with q_lock:
-                args = args_new.get()
+                idx, args = args_new.get()
             result = training(args)[-1]
             with q_lock:
-                output_args.append(args)
-                metrics.append(result)
+                metrics[idx] = result
     for thread_id in range(num_workers):
         threads.append(ctx.Process(target=training_process, args=(args_new, q_lock, metrics, output_args)))
     for thread in threads:
@@ -38,9 +37,8 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
     # Return best arguments and metric
     metrics = np.array(metrics)
     max_i = np.argmax(metrics)
-    # best_args = dict(zip(search_keys, search_vals_list[max_i]))
-    best_args = output_args[max_i]
-    print("All result", list(zip(output_args, metrics)))
+    best_args = dict(zip(search_keys, search_vals_list[max_i]))
+    print("All result", list(zip(search_vals_list, metrics)))
     print("Result:", best_args, metrics[max_i])
     return best_args, metrics[max_i]
 
