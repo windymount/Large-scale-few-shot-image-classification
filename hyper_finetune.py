@@ -11,15 +11,16 @@ from queue import Queue
 
 def test_all(args, search_keys, search_vals_list, training, num_workers):
     arg_dict = vars(args)
-    args_new = Queue()
-    q_lock = threading.Lock()
+    ctx = mp.get_context()
+    args_new = ctx.Queue()
+    q_lock = ctx.Lock()
     for sub_args in search_vals_list:
         # substitute args
         for i, key in enumerate(search_keys):
             arg_dict[key] = sub_args[i]
         args_new.put(Namespace(**arg_dict))
     threads = []
-    output_args, metrics = [], []
+    output_args, metrics = ctx.Array(), ctx.Array()
     def training_process(args_new, q_lock, metrics, output_args):
         while not args_new.empty():
             with q_lock:
@@ -29,7 +30,7 @@ def test_all(args, search_keys, search_vals_list, training, num_workers):
                 output_args.append(args)
                 metrics.append(result)
     for thread_id in range(num_workers):
-        threads.append(mp.Process(target=training_process, args=(args_new, q_lock, metrics, output_args)))
+        threads.append(ctx.Process(target=training_process, args=(args_new, q_lock, metrics, output_args)))
     for thread in threads:
         thread.start()
     for thread in threads:
@@ -101,6 +102,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     search_space = {"lr": [1e-3, 1e-4],
                     # "weight_decay": [0, 1e-4], 
-                    "batch_size":[1, 5], 
+                    # "batch_size":[1, 5], 
                     "use_fc": [True, False]}
     grid_search(args, search_space, main)
