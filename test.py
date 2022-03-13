@@ -70,7 +70,8 @@ def main(args):
             writer = SummaryWriter()
             for epoch in range(N_EPOCHS):
                 train_epoch(res50_model, linear_probe, epoch, crit, train_loader, test_loader, optimizer,
-                            writer, device, verbal=args.verbose, finetune_backbone=args.finetune_backbone)
+                            writer, device, verbal=args.verbose, finetune_backbone=args.finetune_backbone, 
+                            transductive=args.transductive)
             _, acc = validate(torch.nn.Sequential(res50_model, linear_probe), test_loader, device)
             avg_acc.update(acc.item())
         result.append(avg_acc.value)
@@ -80,7 +81,7 @@ def main(args):
     return save_result
 
 def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimizer, writer, device, scheduler=None, 
-                verbal=False, finetune_backbone=False):
+                verbal=False, finetune_backbone=False, transductive=False):
     ep_start = time()
     total_loss = running_average()
     probe.train()
@@ -101,6 +102,22 @@ def train_epoch(backbone, probe, epoch, crit, train_loader, test_loader, optimiz
         loss.backward()
         total_loss.update(loss.item(), img.shape[0])
         optimizer.step()
+    if transductive:
+        for batch_idx, (img, label) in enumerate(test_loader):
+            img, label = img.to(device), label.to(device)
+            if finetune_backbone:
+                output = backbone(img)
+            else:
+                with torch.no_grad():
+                    output = backbone(img)
+            output = probe(output)
+            output = torch.nn.functional.softmax(output)
+            loss = - output * torch.log(output)
+            loss = torch.mean(torch.sum(loss, dim=-1))
+            optimizer.zero_grad()
+            loss.backward()
+            total_loss.update(loss.item(), img.shape[0])
+            optimizer.step()
     if verbal:
         print("Epoch {} total loss {} time {}".format(epoch, total_loss.value, time()-ep_start))
     val_loss, val_acc = validate(torch.nn.Sequential(backbone, probe), test_loader, device, verbal)
@@ -144,5 +161,6 @@ if __name__ == "__main__":
     parser.add_argument("--n-cls-end", type=int, default=50)
     parser.add_argument("--finetune-backbone", action="store_true")
     parser.add_argument("--use-adv-baseline", action="store_true")
+    parser.add_argument("--transductive", action="store_true")
     args = parser.parse_args()
     main(args)

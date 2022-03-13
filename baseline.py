@@ -9,6 +9,7 @@ class baseline_advanced(nn.Module):
         self.bias = nn.parameter.Parameter(torch.zeros((output_feature, )))
     
     def forward(self, x):
+        x = nn.functional.relu(x)
         x = nn.functional.normalize(x)
         norm_weight = nn.functional.normalize(self.weight)
         return nn.functional.linear(x, norm_weight, self.bias)
