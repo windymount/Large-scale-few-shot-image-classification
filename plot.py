@@ -9,6 +9,6 @@ parser.add_argument("--output", type=str, default="result.png")
 args = parser.parse_args()
 
 for input_path in args.input.split(","):
-    data = np.load(input)
+    data = np.load(input_path)
     plt.plot(data[0, :], data[1, :])
 plt.savefig(args.output, dpi=1200)
