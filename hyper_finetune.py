@@ -4,7 +4,7 @@ import numpy as np
 from argparse import Namespace
 import threading
 from params import N_EXPERIMENTS
-from test import main
+from main import main
 import torch.multiprocessing as mp
 from queue import Queue
 
